@@ -29,7 +29,7 @@ export const NIVELES: Nivel[] = [
   {
     orden: 1,
     titulo: '🔓 El Cofre del Fundador',
-    descripcion: 'En 1907, Robert Baden-Powell fundó el movimiento Scout. Su nombre completo tiene 3 palabras. Primera palabra: ROBERT. Segunda: BADEN. ¿Cuál es la palabra que falta entre POWELL?',
+    descripcion: 'En 1907, Robert Baden-Powell fundó el movimiento Scout. Su nombre completo tenia 3 nombres y 2 apellidos ¿Cuál era sus otros 2 nombres?',
     respuestaHash: 'c753760cb8ec0a5afa385c67c5e4970f0e5402bf758318a89abacef0591599bb', // stevensmith
     pista: '1907 + historia scout = búsqueda en Wikipedia',
   },
@@ -86,7 +86,7 @@ export const NIVELES: Nivel[] = [
   {
     orden: 9,
     titulo: '📜 Anagrama Antiguo',
-    descripcion: 'Las letras de esta palabra "MACANAR" pueden reorganizarse para formar una actividad típica de campamento scout. ¿Cuál es?',
+    descripcion: 'Las letras de esta palabra "MACAPAR" pueden reorganizarse para formar una actividad típica de campamento scout. ¿Cuál es?',
     respuestaHash: '34ff755dbc59fbcfcd72518d851409824470a04b24f9fb1daae490e6726d9a52', // acampar
     pista: 'la actividad de dormir al aire libre en carpas',
   },

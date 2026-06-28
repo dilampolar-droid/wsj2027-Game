@@ -27,7 +27,7 @@ pero revisa que `git status` no lo liste como "untracked" antes de hacer
 | patrullaCondores        | CONDORES         | PPSFKL     |
 | patrullaFenix           | FÉNIX            | ALUXHL     |
 | patrullaPanteras        | PANTERAS         | 3JA5CA     |
-| patrulla18              | 18               | WGA37K     |
+| patrullaMantis          | MANTIS           | WGA37K     |
 | patrullaAnaconda        | ANACONDA         | L7SD3L     |
 | patrullaCuyes           | CUYES            | CF9E4M     |
 
