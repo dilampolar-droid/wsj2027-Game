@@ -36,26 +36,26 @@ CREATE TABLE intentos (
 
 -- SEED: 20 Patrullas
 INSERT INTO patrullas (nombre, codigo_acceso) VALUES
-('Patrulla_1', 'patrulla1-2027'),
-('Patrulla_2', 'patrulla2-2027'),
-('Patrulla_3', 'patrulla3-2027'),
+('Patrulla_Leones', 'Leones2027'),
+('Patrulla_Delfines', 'Delfines2027'),
+('Patrulla_Guacamayos', 'Guacamayos2027'),
 ('Patrulla_4', 'patrulla4-2027'),
-('Patrulla_5', 'patrulla5-2027'),
-('Patrulla_6', 'patrulla6-2027'),
-('Patrulla_7', 'patrulla7-2027'),
-('Patrulla_8', 'patrulla8-2027'),
-('Patrulla_9', 'patrulla9-2027'),
-('Patrulla_10', 'patrulla10-2027'),
-('Patrulla_11', 'patrulla11-2027'),
-('Patrulla_12', 'patrulla12-2027'),
-('Patrulla_13', 'patrulla13-2027'),
-('Patrulla_14', 'patrulla14-2027'),
-('Patrulla_15', 'patrulla15-2027'),
-('Patrulla_16', 'patrulla16-2027'),
-('Patrulla_17', 'patrulla17-2027'),
+('Patrulla_Focas', 'Focas2027'),
+('Patrulla_Capybaras', 'Capybaras2027'),
+('Patrulla_Aguilas', 'Aguilas2027'),
+('Patrulla_Nutriasmarinas', 'Nutriasmarinas2027'),
+('Patrulla_Lobos', 'Lobos2027'),
+('Patrulla_Zorros', 'Zorros-2027'),
+('Patrulla_Tigres', 'Tigres-2027'),
+('Patrulla_Panacas', 'Panacas-2027'),
+('Patrulla_Cuervos', 'Cuervos2027'),
+('Patrulla_Llamas', 'Llamas-2027'),
+('Patrulla_Cóndores', 'Cóndores-2027'),
+('Patrulla_Fénix', 'Fénix-2027'),
+('Patrulla_Panteras', 'Panteras-2027'),
 ('Patrulla_18', 'patrulla18-2027'),
-('Patrulla_19', 'patrulla19-2027'),
-('Patrulla_20', 'patrulla20-2027');
+('Patrulla_Aanacondas', 'Aanacondas-2027'),
+('Patrulla_Cuyes', 'Cuyes-2027');
 
 -- SEED: 12 Niveles
 INSERT INTO niveles (orden, titulo, descripcion, tipo, url_slug, url_respuesta, pista) VALUES

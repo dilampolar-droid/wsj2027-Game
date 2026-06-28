@@ -1,19 +1,20 @@
 'use client'
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 
 const NIVELES = [
-  { orden: 1, titulo: '🔓 El Cofre del Fundador', descripcion: 'En 1907, Robert Baden-Powell fundó el movimiento Scout. Su nombre completo tiene 3 palabras. Primera palabra: ROBERT. Segunda: BADEN. Si los números son: R=18, B=2, P=16... ¿Cuál es la palabra que falta entre POWELL y la clave secreta?', respuesta: 'stevensmith', pista: '1907 + historia scout = búsqueda en Wikipedia' },
+  { orden: 1, titulo: '🔓 El Cofre del Fundador', descripcion: 'En 1907, Robert Baden-Powell fundó el movimiento Scout. Su nombre completo tiene 3 palabras. Primera palabra: ROBERT. Segunda: BADEN. ¿Cuál es la palabra que falta entre POWELL?', respuesta: 'stevensmith', pista: '1907 + historia scout = búsqueda en Wikipedia' },
   { orden: 2, titulo: '🗺️ La Brújula Desaparecida', descripcion: 'Texto cifrado ROT13: "TNEQRA YHEQVA VF NAF3P4PU4Y". Decodifica y encontrarás una ciudad polaca.', respuesta: 'jardenlurdin', pista: 'ROT13: cada letra corre 13 espacios en el alfabeto' },
-  { orden: 3, titulo: '🔢 La Pirámide Numérica', descripcion: 'Secuencia: 2-4-8-16-?. Si sumas los dígitos del siguiente número y lo conviertes a palabra en inglés: ONE, TWO, THREE... ¿cuál es?', respuesta: 'thirtytwo', pista: 'Potencias de 2: cada número es el anterior × 2' },
-  { orden: 4, titulo: '⚜️ El Lema Scout', descripcion: 'El lema Scout oficial en inglés tiene 3 palabras que comienzan: B-P-S. Es una orden, una promesa y una acción. ¿Cuál es?', respuesta: 'beprepared', pista: 'Traducción al español: "Siempre listo"' },
-  { orden: 5, titulo: '🎖️ Los Cinco Principios', descripcion: 'Los 5 valores de la ley scout son: Lealtad, Honor, Ayuda, Disciplina y... ¿el quinto? Comienza con D y significa actuar sin buscar recompensa.', respuesta: 'desinteres', pista: 'Antónimo de egoísmo' },
-  { orden: 6, titulo: '🔐 Vigenère Encriptado', descripcion: 'Texto: "KDXWF" con clave: "SCOUT". Decodifica usando Vigenère (resta cada letra de la clave a la del texto).', respuesta: 'badge', pista: 'K-S=?, D-C=?, X-O=?, W-U=?, F-T=?' },
-  { orden: 7, titulo: '🌍 El Lema de Gdańsk', descripcion: 'En la ciudad donde se celebra el Jamboree hay un lema histórico (1980s): "Solidarność" (Solidaridad). ¿En qué movimiento fue clave esta palabra?', respuesta: 'syndicato', pista: 'Fue un movimiento laboral revolucionario en Polonia' },
+  { orden: 3, titulo: '🔢 La Pirámide Numérica', descripcion: 'Secuencia: 2-4-8-16-?. Si sumas los dígitos del siguiente número y lo conviertes a palabra en inglés: ONE, TWO, THREE... ¿cuál es?', respuesta: 'thirtytwo', pista: 'Potencias de 2: cada número es el anterior x 2' },
+  { orden: 4, titulo: '⚜️ El Lema Scout', descripcion: 'El lema Scout oficial en inglés tiene 2 palabras que comienzan: B-P. Es una lema a nivel mundial. ¿Cuál es?', respuesta: 'be prepared', pista: 'Traducción al español: "Siempre listo"' },
+  { orden: 5, titulo: '🎖️ Los Cinco Principios', descripcion: 'En el primer campamento scout fueron 4 patrullas que fueron: Toros, Cuervos, Lobos y....¿el quinto?.', respuesta: 'chorlitos', pista: 'Comienza con C' },
+  { orden: 6, titulo: '🔐 Vigenère Encriptado', descripcion: 'Texto: "KDXWF" con clave: "SCOUT". Decodifica usando Vigenère (resta cada letra de la clave a la del texto).', respuesta: 'badge', pista: 'Q-P=?, C-C=?, N-K=?, Z-T=?, R-N=?' },
+  { orden: 7, titulo: '🌍 El Lema de Gdańsk', descripcion: '', respuesta: '', pista: '' },
   { orden: 8, titulo: '🎭 El Acertijo Paradójico', descripcion: 'Soy una puerta que está siempre abierta pero nunca entra ni sale nadie. He guiado a millones de scouts en la oscuridad. ¿Qué soy?', respuesta: 'brujula', pista: 'Navegación sin entradas ni salidas' },
-  { orden: 9, titulo: '📜 Anagrama Antiguo', descripcion: 'Las letras de esta palabra pueden reorganizarse para formar: "¿QUÉ SIGUE?" Pista: Es lo que hacen los scouts en la naturaleza. Anagrama: MECANAR', respuesta: 'acampar', pista: 'Reorganiza las letras de MECANAR' },
-  { orden: 10, titulo: '🔗 La Cadena de Nudos', descripcion: 'Tres nudos básicos scouts: 1) Plano (cuadrado). 2) _______ (une dos cuerdas). 3) Vuelta (fija cuerda a objeto). ¿El segundo?', respuesta: 'ballestrinque', pista: 'Nudo de empalme, muy usado en escalada' },
+  { orden: 9, titulo: '📜 Anagrama Antiguo', descripcion: 'Las letras de esta palabra pueden reorganizarse para formar: "¿QUÉ SIGUE?" Pista: Es lo que hacen los scouts en la naturaleza. Anagrama: MACANAR', respuesta: 'acampar', pista: 'Reorganiza las letras de MECANAR' },
+  { orden: 10, titulo: '🔗 La Cadena de Nudos', descripcion: '¿Qué nudo sirve para empezar o finalizar un amarre?', respuesta: 'ballestrinque', pista: 'Nudo de empalme, muy usado en escalada' },
   { orden: 11, titulo: '⚡ Código Morse Final', descripcion: 'Morse: .... . .-. --- . ... (con espacios entre letras). Decodifica y encontrarás a quiénes honramos.', respuesta: 'heroes', pista: 'H=...., E=., R=.-.…' },
-  { orden: 12, titulo: '🏆 El Círculo Completo', descripcion: '¡FELICITACIONES! Han resuelto todos los enigmas. El verdadero premio es el viaje, no el destino. En scout, ¿cómo se llama el acto final de reunión?', respuesta: 'fuegoscout', pista: 'Tradición alrededor del fuego al final de campamento' },
+  { orden: 12, titulo: '🏆 El Círculo Completo', descripcion: '¡FELICITACIONES! Han resuelto todos los enigmas. El verdadero premio es el viaje, no el destino. En scout, ¿cómo se llama el acto final de reunión?', respuesta: 'Fogata', pista: 'Tradición alrededor del fuego al final de campamento' },
 ]
 
 const TIEMPO_LIMITE_SEGUNDOS = 2700 // 45 minutos
@@ -29,7 +30,7 @@ export default function Home() {
   const [nivelActual, setNivelActual] = useState(0)
   const [intentos, setIntentos] = useState(0)
   const [error, setError] = useState('')
-  const [tiempoInicio, setTiempoInicio] = useState(null)
+  const [tiempoInicio, setTiempoInicio] = useState<number | null>(null)
   const [pistaVisible, setPistaVisible] = useState(false)
   const [puntos, setPuntos] = useState(0)
   const [tiempoRestante, setTiempoRestante] = useState(TIEMPO_LIMITE_SEGUNDOS)
@@ -56,33 +57,57 @@ export default function Home() {
     }
   }, [screen, tiempoInicio, puntos])
 
-  const login = (e) => {
+  // FUNCIÓN DE LOGIN ACTUALIZADA CON SUPABASE
+  const login = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     const upperCode = code.toUpperCase().trim()
     
-    if (!upperCode || !upperCode.includes('-2027')) {
-      setError('Formato correcto: NOMBRE-2027')
+    if (!upperCode) {
+      setError('Por favor ingresa un código')
       return
     }
-    
-    setPatrulla(upperCode)
-    setNivelActual(0)
-    setIntentos(0)
-    setMessage('')
-    setPistaVisible(false)
-    setPuntos(0)
-    setTiempoRestante(TIEMPO_LIMITE_SEGUNDOS)
-    setTiempoInicio(Date.now())
-    setScreen('game')
-    
-    // Guardar en localStorage para admin
-    const patrullas = JSON.parse(localStorage.getItem('wsj2027_patrullas') || '[]')
-    patrullas.push({ codigo: upperCode, nombre: upperCode, nivel_actual: 1, puntos: 0, estado: 'jugando', inicio: new Date().toISOString() })
-    localStorage.setItem('wsj2027_patrullas', JSON.stringify(patrullas))
+
+    try {
+      // 1. Consultar a la base de datos de Supabase
+      const { data, error: supabaseError } = await supabase
+        .from('patrullas') 
+        .select('*')
+        .eq('codigo', upperCode)
+        .single()
+
+      // 2. Si no existe en la base de datos, bloqueamos el acceso
+      if (supabaseError || !data) {
+        setError('Código no válido. Intenta con un código de patrulla correcto.')
+        return
+      }
+      
+      // 3. Si existe, configuramos el juego y dejamos entrar
+      setPatrulla(upperCode)
+      setNivelActual(0)
+      setIntentos(0)
+      setMessage('')
+      setPistaVisible(false)
+      setPuntos(0)
+      setTiempoRestante(TIEMPO_LIMITE_SEGUNDOS)
+      setTiempoInicio(Date.now())
+      setScreen('game')
+      
+      // Guardar en localStorage para que tu panel de admin lo detecte
+      const patrullas = JSON.parse(localStorage.getItem('wsj2027_patrullas') || '[]')
+      const exists = patrullas.find((p: any) => p.codigo === upperCode)
+      if (!exists) {
+        patrullas.push({ codigo: upperCode, nombre: upperCode, nivel_actual: 1, puntos: 0, estado: 'jugando', inicio: new Date().toISOString() })
+        localStorage.setItem('wsj2027_patrullas', JSON.stringify(patrullas))
+      }
+
+    } catch (err) {
+      console.error("Error al validar con Supabase:", err)
+      setError('Error de conexión. Intenta de nuevo.')
+    }
   }
 
-  const responder = (e) => {
+  const responder = (e: React.FormEvent) => {
     e.preventDefault()
     const nivel = NIVELES[nivelActual]
     setIntentos(intentos + 1)
@@ -90,7 +115,7 @@ export default function Home() {
     if (answer.toLowerCase().replace(/\s/g, '') === nivel.respuesta.toLowerCase().replace(/\s/g, '')) {
       // Calcular puntos
       const ahora = Date.now()
-      const tiempoNivel = Math.floor((ahora - tiempoInicio) / 1000)
+      const tiempoNivel = tiempoInicio ? Math.floor((ahora - tiempoInicio) / 1000) : 0
       const puntosNivel = tiempoNivel < TIEMPO_BONUS_SEGUNDOS ? PUNTOS_POR_NIVEL + 500 : PUNTOS_POR_NIVEL
       const nuevosPuntos = puntos + puntosNivel
 
@@ -101,7 +126,7 @@ export default function Home() {
         
         // Actualizar localStorage
         const patrullas = JSON.parse(localStorage.getItem('wsj2027_patrullas') || '[]')
-        const idx = patrullas.findIndex(p => p.codigo === patrulla)
+        const idx = patrullas.findIndex((p: any) => p.codigo === patrulla)
         if (idx >= 0) {
           patrullas[idx] = { ...patrullas[idx], nivel_actual: 12, puntos: nuevosPuntos, estado: 'completado', fin: new Date().toISOString() }
           localStorage.setItem('wsj2027_patrullas', JSON.stringify(patrullas))
@@ -129,7 +154,7 @@ export default function Home() {
     }
   }
 
-  const formatoTiempo = (segundos) => {
+  const formatoTiempo = (segundos: number) => {
     const mins = Math.floor(segundos / 60)
     const segs = segundos % 60
     return `${mins}:${segs.toString().padStart(2, '0')}`
@@ -148,7 +173,7 @@ export default function Home() {
           <form onSubmit={login}>
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', marginBottom: '10px', color: '#c9a84c', fontSize: '0.95em', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 'bold' }}>🔐 Código de Patrulla</label>
-              <input type="text" value={code} onChange={(e) => { setCode(e.target.value); setError('') }} placeholder="AGUILA-2027" style={{ background: '#0d1b2a', border: '2px solid #3a5c3a', color: '#00d4aa', padding: '14px', borderRadius: '4px', width: '100%', fontSize: '1.1em', fontFamily: 'monospace', fontWeight: 'bold' }} autoFocus />
+              <input type="text" value={code} onChange={(e) => { setCode(e.target.value); setError('') }} placeholder="Ingresa tu código" style={{ background: '#0d1b2a', border: '2px solid #3a5c3a', color: '#00d4aa', padding: '14px', borderRadius: '4px', width: '100%', fontSize: '1.1em', fontFamily: 'monospace', fontWeight: 'bold' }} autoFocus />
             </div>
             {error && <p style={{ color: '#e85d26', marginBottom: '15px', fontSize: '0.9em' }}>⚠️ {error}</p>}
             <button type="submit" style={{ background: 'linear-gradient(135deg, #c9a84c, #e8c97a)', color: '#0d1b2a', padding: '14px', border: 'none', borderRadius: '4px', width: '100%', fontSize: '1.1em', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', transition: 'all 0.3s', boxShadow: '0 4px 15px rgba(201, 168, 76, 0.3)' }} onMouseEnter={(e) => (e.target as HTMLButtonElement).style.transform = 'scale(1.02)'} onMouseLeave={(e) => (e.target as HTMLButtonElement).style.transform = 'scale(1)'}>

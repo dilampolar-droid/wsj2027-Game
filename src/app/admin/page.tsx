@@ -2,10 +2,11 @@
 import { useState, useEffect } from 'react'
 
 const ADMIN_CREDENCIALES = [
-  { usuario: 'admin1', password: 'scout2027' },
-  { usuario: 'admin2', password: 'jamboree2027' },
-  { usuario: 'director', password: 'gdansk2027' },
-  { usuario: 'juez', password: 'enigma2027' },
+  { usuario: 'admin1', password: 'admin1' },
+  { usuario: 'admin2', password: 'admin2' },
+  { usuario: 'admin3', password: 'admin3' },
+  { usuario: 'admin4', password: 'admin4' },
+  { usuario: 'admin5', password: 'admin5' },
 ]
 
 export default function AdminPage() {
@@ -27,7 +28,7 @@ export default function AdminPage() {
     return () => clearInterval(interval)
   }, [])
 
-  const handleLogin = (e) => {
+    const handleLogin = (e) => {
     e.preventDefault()
     setError('')
     
@@ -66,12 +67,12 @@ export default function AdminPage() {
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: '15px' }}>
               <label style={{ display: 'block', marginBottom: '8px', color: '#c9a84c', fontSize: '0.9em', textTransform: 'uppercase', fontWeight: 'bold' }}>Usuario</label>
-              <input type="text" value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder="admin1" style={{ background: '#0d1b2a', border: '2px solid #3a5c3a', color: '#00d4aa', padding: '10px', borderRadius: '4px', width: '100%', fontSize: '1em' }} autoFocus />
+              <input type="text" value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder="Ingresa tu usuario" style={{ background: '#0d1b2a', border: '2px solid #3a5c3a', color: '#00d4aa', padding: '10px', borderRadius: '4px', width: '100%', fontSize: '1em' }} autoFocus />
             </div>
 
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', marginBottom: '8px', color: '#c9a84c', fontSize: '0.9em', textTransform: 'uppercase', fontWeight: 'bold' }}>Contraseña</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="scout2027" style={{ background: '#0d1b2a', border: '2px solid #3a5c3a', color: '#00d4aa', padding: '10px', borderRadius: '4px', width: '100%', fontSize: '1em' }} />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Ingresa tu contraseña" style={{ background: '#0d1b2a', border: '2px solid #3a5c3a', color: '#00d4aa', padding: '10px', borderRadius: '4px', width: '100%', fontSize: '1em' }} />
             </div>
 
             {error && <p style={{ color: '#e85d26', marginBottom: '15px', textAlign: 'center' }}>{error}</p>}
@@ -82,11 +83,6 @@ export default function AdminPage() {
           </form>
 
           <div style={{ marginTop: '30px', padding: '15px', background: 'rgba(0, 212, 170, 0.1)', borderRadius: '4px', fontSize: '0.85em', color: '#a8a8a8' }}>
-            <p style={{ marginBottom: '10px', color: '#c9a84c', fontWeight: 'bold' }}>Credenciales Disponibles:</p>
-            <p>👤 admin1 / scout2027</p>
-            <p>👤 admin2 / jamboree2027</p>
-            <p>👤 director / gdansk2027</p>
-            <p>👤 juez / enigma2027</p>
           </div>
         </div>
       </div>
