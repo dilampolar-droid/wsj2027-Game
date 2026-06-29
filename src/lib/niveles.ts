@@ -57,7 +57,7 @@ export const NIVELES: Nivel[] = [
   {
     orden: 5,
     titulo: '🎖️ Las 4 patrullas',
-    descripcion: 'En el primer campamento scout fueron 4 patrullas que fueron: Toros, Cuervos, Lobos y....¿el quinto?.',
+    descripcion: 'En el primer campamento scout fueron 4 patrullas que fueron: Toros, Cuervos, Lobos y....¿el cuarto?.',
     respuestaHash: '0af1b037e53e3a463c4b7b184c34ca95c8152bddfaf2c7253de548afd2b38ef9', // chorlitos
     pista: 'Comienza con C',
   },
