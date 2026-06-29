@@ -1,216 +1,198 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { NIVELES, TIEMPO_LIMITE_SEGUNDOS } from '@/src/lib/niveles'
 
-interface Nivel {
-  orden: number
-  titulo: string
-  descripcion: string
-  // SHA-256 de la respuesta normalizada (minúsculas, sin espacios).
-  // Así la respuesta nunca aparece en texto plano en el código que llega al navegador.
-  respuestaHash: string
-  pista: string
-}
+const TOKEN_KEY = 'wsj2027_token'
 
-const NIVELES = [
-  { orden: 1, titulo: '🔓 El Cofre del Fundador', descripcion: 'En 1907, Robert Baden-Powell fundó el movimiento Scout. Su nombre completo tenia 3 nombres y 2 apellidos ¿Cuál era sus otros 2 nombres?', respuesta: 'stevensmith', pista: '1907 + historia scout = búsqueda en Wikipedia',},
-  { orden: 2, titulo: '🗺️ La Brújula Desaparecida',descripcion: '5S/67/341D7D/D56/J70B9255. Decodifica y encontrarás una ciudad polaca.', respuesta: 'gdansk', pista: 'Utilza la clave murcielago para decodificar el mensaje',},
-  { orden: 3, titulo: '🔢 La Pirámide Numérica', descripcion: 'Secuencia: 2-4-8-16-?. Si sumas los dígitos del siguiente número y lo conviertes a palabra en inglés: ONE, TWO, THREE... ¿cuál es?', respuesta: 'thirtytwo', pista: 'Potencias de 2: cada número es el anterior x 2' },
-  { orden: 4, titulo: '⚜️ El Lema Scout', descripcion: 'El lema Scout oficial en inglés tiene 2 palabras que comienzan: B-P. Es una lema a nivel mundial. ¿Cuál es?', respuesta: 'be prepared', pista: 'Traducción al español: "Siempre listo"' },
-  { orden: 5, titulo: '🎖️ Los Cinco Principios', descripcion: 'En el primer campamento scout fueron 4 patrullas que fueron: Toros, Cuervos, Lobos y....¿el quinto?.', respuesta: 'chorlitos', pista: 'Comienza con C' },
-  { orden: 6, titulo: '🔐 Fecha Importante', descripcion: 'Cuando fue el primer campamento scout?', respuesta: '1907', pista: 'Fue entre 1900 y 1910'},
-  { orden: 7, titulo: '📖 Un libro importante', descripcion: '¿Qué nombre recibe el libro escrito por Baden-Powell que contiene las bases del movimiento?', respuesta: 'escultismoparamuchachos', pista: 'Libro fundamental del movimiento scout',},
-  { orden: 8, titulo: '🎭 El Acertijo Paradójico', descripcion: 'Soy una puerta que está siempre abierta pero nunca entra ni sale nadie. He guiado a millones de scouts en la oscuridad. ¿Qué soy?', respuesta: 'brujula', pista: 'Navegación sin entradas ni salidas' },
-  { orden: 9, titulo: '📜 Anagrama Antiguo', descripcion: 'Las letras de esta palabra "MACAPAR" pueden reorganizarse para formar una actividad típica de campamento scout. ¿Cuál es?', respuesta: 'acampar', pista: 'la actividad de dormir al aire libre en carpas',},
-  { orden: 10, titulo: '🔗 La Cadena de Nudos', descripcion: '¿Qué nudo sirve para empezar o finalizar un amarre?', respuesta: 'ballestrinque', pista: 'Nudo de empalme, muy usado en escalada' },
-  { orden: 11, titulo: '⚡ Código Morse Final', descripcion: 'Morse: .-.. . .- .-.. - .- -.. / .- -... -. . --. .- -.-. .. --- -. / -.-- / .--. ..- .-. . --.. .-¿Que son?', respuesta: 'virtudes', pista: 'D=../ A=.- / Y=-.-- / R=.-.',},
-  { orden: 12, titulo: '🏆 El Círculo Completo', descripcion: '¡FELICITACIONES! Han resuelto todos los enigmas. El verdadero premio es el viaje, no el destino. En scout, ¿cómo se llama el acto final de reunión?', respuesta: 'Fogata', pista: 'Tradición alrededor del fuego al final de campamento' },
-]
+type Estado = 'sin_empezar' | 'jugando' | 'completado' | 'tiempo_agotado'
 
-const TIEMPO_LIMITE_SEGUNDOS = 2700 // 45 minutos
-const PUNTOS_POR_NIVEL = 1000
-const TIEMPO_BONUS_SEGUNDOS = 120 // Bonus si respondes en menos de 2 minutos
-const SESSION_KEY = 'wsj2027_sesion_activa'
-const PATRULLAS_KEY = 'wsj2027_patrullas'
-
-interface Sesion {
-  patrulla: string
-  nivelActual: number
+interface PatrullaState {
+  usuario: string
+  nombrePatrulla: string
+  nivelActual: number // 1..12
   puntos: number
-  tiempoInicio: number
+  estado: Estado
+  tiempoInicio: string | null
+  intentosNivelActual: number
 }
 
-async function sha256(texto: string): Promise<string> {
-  const data = new TextEncoder().encode(texto)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
+async function apiFetch(path: string, options: RequestInit = {}) {
+  const token = typeof window !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> | undefined),
+  }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetch(path, { ...options, headers, cache: 'no-store' })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const err = new Error(data.error || 'Error de servidor') as Error & { status?: number; data?: any }
+    err.status = res.status
+    err.data = data
+    throw err
+  }
+  return data
 }
 
 export default function Home() {
   const [screen, setScreen] = useState<'login' | 'game'>('login')
-  const [code, setCode] = useState('')
+  const [usuario, setUsuario] = useState('')
+  const [password, setPassword] = useState('')
+  const [loginError, setLoginError] = useState('')
+  const [cargandoLogin, setCargandoLogin] = useState(false)
+
+  const [patrulla, setPatrulla] = useState<PatrullaState | null>(null)
   const [answer, setAnswer] = useState('')
   const [message, setMessage] = useState('')
-  const [patrulla, setPatrulla] = useState('')
-  const [nivelActual, setNivelActual] = useState(0)
-  const [intentos, setIntentos] = useState(0)
-  const [error, setError] = useState('')
-  const [tiempoInicio, setTiempoInicio] = useState<number | null>(null)
   const [pistaVisible, setPistaVisible] = useState(false)
-  const [puntos, setPuntos] = useState(0)
   const [tiempoRestante, setTiempoRestante] = useState(TIEMPO_LIMITE_SEGUNDOS)
   const [verificando, setVerificando] = useState(false)
+  const [finalizando, setFinalizando] = useState(false)
 
-  // Restaurar sesión activa si la página se recarga (evita perder el progreso a mitad de partida)
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SESSION_KEY)
-      if (raw) {
-        const sesion: Sesion = JSON.parse(raw)
-        const transcurrido = Math.floor((Date.now() - sesion.tiempoInicio) / 1000)
-        if (transcurrido < TIEMPO_LIMITE_SEGUNDOS && sesion.nivelActual < NIVELES.length) {
-          setPatrulla(sesion.patrulla)
-          setNivelActual(sesion.nivelActual)
-          setPuntos(sesion.puntos)
-          setTiempoInicio(sesion.tiempoInicio)
-          setScreen('game')
-        } else {
-          localStorage.removeItem(SESSION_KEY)
-        }
-      }
-    } catch {
-      localStorage.removeItem(SESSION_KEY)
-    }
+  const patrullaRef = useRef(patrulla)
+  patrullaRef.current = patrulla
+
+  const cerrarPartida = useCallback((titulo: string, detalle: string) => {
+    localStorage.removeItem(TOKEN_KEY)
+    setMessage('')
+    setScreen('login')
+    setUsuario('')
+    setPassword('')
+    setPatrulla(null)
+    setAnswer('')
+    alert(`${titulo}\n\n${detalle}`)
   }, [])
 
-  const terminarPartida = useCallback((codigo: string, estado: 'completado' | 'tiempo_agotado', puntosFinales: number) => {
-    try {
-      const patrullas = JSON.parse(localStorage.getItem(PATRULLAS_KEY) || '[]')
-      const idx = patrullas.findIndex((p: any) => p.codigo === codigo)
-      if (idx >= 0) {
-        patrullas[idx] = { ...patrullas[idx], puntos: puntosFinales, estado, fin: new Date().toISOString() }
-        localStorage.setItem(PATRULLAS_KEY, JSON.stringify(patrullas))
-      }
-    } catch {
-      // localStorage no disponible (modo privado, etc.) - no es crítico
-    }
-    localStorage.removeItem(SESSION_KEY)
+  // Al cargar la página, si hay un token guardado, recuperamos el estado desde el servidor
+  // (esto es lo que permite "recargar la página a mitad de partida sin perder progreso",
+  // pero ahora el progreso vive en el backend, no en localStorage del dispositivo).
+  useEffect(() => {
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (!token) return
+    apiFetch('/api/estado')
+      .then((data) => {
+        if (data.patrulla.estado === 'completado' || data.patrulla.estado === 'tiempo_agotado') {
+          localStorage.removeItem(TOKEN_KEY)
+          return
+        }
+        setPatrulla(data.patrulla)
+        setScreen('game')
+      })
+      .catch(() => {
+        localStorage.removeItem(TOKEN_KEY)
+      })
   }, [])
 
-  // Cronómetro global
+  // Cronómetro: puramente visual. La verdad sobre si el tiempo se acabó la decide
+  // siempre el servidor (con tiempo_inicio), nunca el reloj del navegador del jugador.
   useEffect(() => {
-    if (screen === 'game' && tiempoInicio) {
-      const interval = setInterval(() => {
-        const ahora = Date.now()
-        const transcurrido = Math.floor((ahora - tiempoInicio) / 1000)
-        const restante = Math.max(0, TIEMPO_LIMITE_SEGUNDOS - transcurrido)
-        setTiempoRestante(restante)
+    if (screen !== 'game' || !patrulla?.tiempoInicio || finalizando) return
 
-        if (restante === 0) {
-          clearInterval(interval)
-          alert(`⏰ ¡TIEMPO AGOTADO!\n\nPuntuación final: ${puntos}`)
-          terminarPartida(patrulla, 'tiempo_agotado', puntos)
-          setScreen('login')
-          setPatrulla('')
-          setCode('')
-          setAnswer('')
-          setTiempoInicio(null)
-        }
-      }, 1000)
-      return () => clearInterval(interval)
+    const calcularRestante = () => {
+      const transcurrido = Math.floor((Date.now() - new Date(patrulla.tiempoInicio as string).getTime()) / 1000)
+      return Math.max(0, TIEMPO_LIMITE_SEGUNDOS - transcurrido)
     }
-  }, [screen, tiempoInicio, puntos, patrulla, terminarPartida])
 
-  const login = (e: React.FormEvent) => {
+    setTiempoRestante(calcularRestante())
+
+    const interval = setInterval(async () => {
+      const restante = calcularRestante()
+      setTiempoRestante(restante)
+
+      if (restante <= 0) {
+        clearInterval(interval)
+        setFinalizando(true)
+        try {
+          const data = await apiFetch('/api/estado')
+          cerrarPartida('⏰ ¡TIEMPO AGOTADO!', `Puntuación final: ${data.patrulla.puntos} pts`)
+        } catch {
+          cerrarPartida('⏰ ¡TIEMPO AGOTADO!', `Puntuación final: ${patrullaRef.current?.puntos ?? 0} pts`)
+        }
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [screen, patrulla?.tiempoInicio, finalizando, cerrarPartida])
+
+  const login = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
-    const upperCode = code.toUpperCase().trim()
+    setLoginError('')
 
-    if (!upperCode || !upperCode.includes('-2027')) {
-      setError('Formato correcto: NOMBRE-2027')
+    if (!usuario.trim() || !password) {
+      setLoginError('Usuario y contraseña son obligatorios')
       return
     }
 
-    const inicio = Date.now()
-    setPatrulla(upperCode)
-    setNivelActual(0)
-    setIntentos(0)
-    setMessage('')
-    setPistaVisible(false)
-    setPuntos(0)
-    setTiempoRestante(TIEMPO_LIMITE_SEGUNDOS)
-    setTiempoInicio(inicio)
-    setScreen('game')
-
+    setCargandoLogin(true)
     try {
-      const sesion: Sesion = { patrulla: upperCode, nivelActual: 0, puntos: 0, tiempoInicio: inicio }
-      localStorage.setItem(SESSION_KEY, JSON.stringify(sesion))
-
-      const patrullas = JSON.parse(localStorage.getItem(PATRULLAS_KEY) || '[]')
-      patrullas.push({ codigo: upperCode, nombre: upperCode, nivel_actual: 1, puntos: 0, estado: 'jugando', inicio: new Date().toISOString() })
-      localStorage.setItem(PATRULLAS_KEY, JSON.stringify(patrullas))
-    } catch {
-      // si localStorage falla, el juego sigue funcionando en memoria igualmente
+      const data = await apiFetch('/api/login', {
+        method: 'POST',
+        body: JSON.stringify({ usuario: usuario.trim(), password }),
+      })
+      localStorage.setItem(TOKEN_KEY, data.token)
+      setPatrulla(data.patrulla)
+      setAnswer('')
+      setMessage('')
+      setPistaVisible(false)
+      setScreen('game')
+    } catch (err: any) {
+      setLoginError(err.message || 'No se pudo iniciar sesión')
+    } finally {
+      setCargandoLogin(false)
     }
   }
 
   const responder = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (verificando || !tiempoInicio) return
+    if (verificando || !patrulla) return
     setVerificando(true)
 
-    const nivel = NIVELES[nivelActual]
-    const normalizado = answer.toLowerCase().replace(/\s/g, '')
-    const hashIngresado = await sha256(normalizado)
-    const nuevoIntentos = intentos + 1
-    setIntentos(nuevoIntentos)
+    try {
+      const data = await apiFetch('/api/responder', {
+        method: 'POST',
+        body: JSON.stringify({ respuesta: answer }),
+      })
 
-    if (hashIngresado === nivel.respuesta) {
-      const ahora = Date.now()
-      const tiempoNivel = Math.floor((ahora - tiempoInicio) / 1000)
-      const puntosNivel = tiempoNivel < TIEMPO_BONUS_SEGUNDOS ? PUNTOS_POR_NIVEL + 500 : PUNTOS_POR_NIVEL
-      const nuevosPuntos = puntos + puntosNivel
-      setPuntos(nuevosPuntos)
-
-      if (nivelActual === NIVELES.length - 1) {
-        alert(`🏆 ¡¡¡ GANARON !!! \n\n${patrulla}\nPuntuación Final: ${nuevosPuntos} puntos\n\n¡Somos unidad! ⚜️`)
-        terminarPartida(patrulla, 'completado', nuevosPuntos)
-        setScreen('login')
-        setPatrulla('')
-        setCode('')
+      if (!data.correcto) {
+        setMessage(`❌ Intento ${data.intentos} - Incorrecto`)
         setAnswer('')
-        setTiempoInicio(null)
+        setPatrulla((p) => (p ? { ...p, intentosNivelActual: data.intentos } : p))
         setVerificando(false)
         return
       }
 
-      setMessage(`✅ ¡CORRECTO! +${puntosNivel} pts`)
-      const siguienteNivel = nivelActual + 1
-      try {
-        const sesion: Sesion = { patrulla, nivelActual: siguienteNivel, puntos: nuevosPuntos, tiempoInicio }
-        localStorage.setItem(SESSION_KEY, JSON.stringify(sesion))
-        const patrullas = JSON.parse(localStorage.getItem(PATRULLAS_KEY) || '[]')
-        const idx = patrullas.findIndex((p: any) => p.codigo === patrulla)
-        if (idx >= 0) {
-          patrullas[idx] = { ...patrullas[idx], nivel_actual: siguienteNivel + 1, puntos: nuevosPuntos }
-          localStorage.setItem(PATRULLAS_KEY, JSON.stringify(patrullas))
-        }
-      } catch {
-        // no crítico
+      setMessage(`✅ ¡CORRECTO! +${data.puntosGanados} pts`)
+
+      if (data.completado) {
+        setTimeout(() => {
+          cerrarPartida('🏆 ¡¡¡ FIN !!!', `${patrulla.nombrePatrulla}\nPuntuación Final: ${data.puntosTotales} puntos\n\n¡FELICIDADES! ⚜️`)
+        }, 800)
+        return
       }
 
       setTimeout(() => {
-        setNivelActual(siguienteNivel)
+        setPatrulla((p) =>
+          p
+            ? {
+                ...p,
+                nivelActual: data.siguienteNivel,
+                puntos: data.puntosTotales,
+                intentosNivelActual: 0,
+              }
+            : p
+        )
         setAnswer('')
         setMessage('')
-        setIntentos(0)
         setPistaVisible(false)
         setVerificando(false)
       }, 1500)
-    } else {
-      setMessage(`❌ Intento ${nuevoIntentos} - Incorrecto`)
-      setAnswer('')
+    } catch (err: any) {
+      if (err.status === 409 && err.data?.estado === 'tiempo_agotado') {
+        cerrarPartida('⏰ ¡TIEMPO AGOTADO!', `Puntuación final: ${err.data.puntos ?? patrulla.puntos} pts`)
+        return
+      }
+      setMessage('⚠️ Error al verificar la respuesta. Intenta de nuevo.')
       setVerificando(false)
     }
   }
@@ -221,7 +203,7 @@ export default function Home() {
     return `${mins}:${segs.toString().padStart(2, '0')}`
   }
 
-  if (screen === 'login') {
+  if (screen === 'login' || !patrulla) {
     return (
       <div style={{ maxWidth: '600px', margin: '80px auto', padding: '0 20px' }}>
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
@@ -233,12 +215,38 @@ export default function Home() {
         <div style={{ background: 'rgba(26, 46, 26, 0.8)', border: '2px solid #c9a84c', padding: '40px', borderRadius: '8px', boxShadow: '0 0 20px rgba(201, 168, 76, 0.2)' }}>
           <form onSubmit={login}>
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '10px', color: '#c9a84c', fontSize: '0.95em', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 'bold' }}>🔐 Código de Patrulla</label>
-              <input type="text" value={code} onChange={(e) => { setCode(e.target.value); setError('') }} placeholder="AGUILA-2027" style={{ background: '#0d1b2a', border: '2px solid #3a5c3a', color: '#00d4aa', padding: '14px', borderRadius: '4px', width: '100%', fontSize: '1.1em', fontFamily: 'monospace', fontWeight: 'bold' }} autoFocus />
+              <label style={{ display: 'block', marginBottom: '10px', color: '#c9a84c', fontSize: '0.95em', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 'bold' }}>🔐 Usuario de Patrulla</label>
+              <input
+                type="text"
+                value={usuario}
+                onChange={(e) => { setUsuario(e.target.value); setLoginError('') }}
+                placeholder="Nombre de tu Patrulla"
+                style={{ background: '#0d1b2a', border: '2px solid #3a5c3a', color: '#00d4aa', padding: '14px', borderRadius: '4px', width: '100%', fontSize: '1.1em', fontFamily: 'monospace', fontWeight: 'bold' }}
+                autoFocus
+                autoComplete="username"
+              />
             </div>
-            {error && <p style={{ color: '#e85d26', marginBottom: '15px', fontSize: '0.9em' }}>⚠️ {error}</p>}
-            <button type="submit" style={{ background: 'linear-gradient(135deg, #c9a84c, #e8c97a)', color: '#0d1b2a', padding: '14px', border: 'none', borderRadius: '4px', width: '100%', fontSize: '1.1em', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', boxShadow: '0 4px 15px rgba(201, 168, 76, 0.3)' }}>
-              🔓 ENTRAR AL ESCAPE ROOM
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '10px', color: '#c9a84c', fontSize: '0.95em', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 'bold' }}>🔑 Contraseña</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setLoginError('') }}
+                placeholder="••••••"
+                style={{ background: '#0d1b2a', border: '2px solid #3a5c3a', color: '#00d4aa', padding: '14px', borderRadius: '4px', width: '100%', fontSize: '1.1em', fontFamily: 'monospace', fontWeight: 'bold' }}
+                autoComplete="current-password"
+              />
+            </div>
+
+            {loginError && <p style={{ color: '#e85d26', marginBottom: '15px', fontSize: '0.9em' }}>⚠️ {loginError}</p>}
+
+            <button
+              type="submit"
+              disabled={cargandoLogin}
+              style={{ background: 'linear-gradient(135deg, #c9a84c, #e8c97a)', color: '#0d1b2a', padding: '14px', border: 'none', borderRadius: '4px', width: '100%', fontSize: '1.1em', fontWeight: 'bold', cursor: cargandoLogin ? 'default' : 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', boxShadow: '0 4px 15px rgba(201, 168, 76, 0.3)', opacity: cargandoLogin ? 0.7 : 1 }}
+            >
+              {cargandoLogin ? '⏳ Entrando...' : '🔓 ENTRAR AL ESCAPE ROOM'}
             </button>
           </form>
 
@@ -254,8 +262,8 @@ export default function Home() {
     )
   }
 
-  const nivel = NIVELES[nivelActual]
-  const progreso = Math.round(((nivelActual + 1) / NIVELES.length) * 100)
+  const nivel = NIVELES[patrulla.nivelActual - 1]
+  const progreso = Math.round((patrulla.nivelActual / NIVELES.length) * 100)
   const colorTiempo = tiempoRestante < 300 ? '#e85d26' : '#00d4aa'
 
   return (
@@ -263,11 +271,11 @@ export default function Home() {
       <div style={{ marginBottom: '30px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <div>
-            <h1 style={{ color: '#c9a84c', marginBottom: '5px', fontSize: '1.8em' }}>{patrulla}</h1>
-            <p style={{ color: '#a8a8a8', fontSize: '0.9em' }}>Enigma {nivel.orden}/{NIVELES.length} • Intento {intentos + 1}</p>
+            <h1 style={{ color: '#c9a84c', marginBottom: '5px', fontSize: '1.8em' }}>{patrulla.nombrePatrulla}</h1>
+            <p style={{ color: '#a8a8a8', fontSize: '0.9em' }}>Enigma {nivel.orden}/{NIVELES.length} • Intento {patrulla.intentosNivelActual + 1}</p>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <p style={{ color: '#00d4aa', fontSize: '1.5em', fontWeight: 'bold', marginBottom: '5px' }}>{puntos} pts</p>
+            <p style={{ color: '#00d4aa', fontSize: '1.5em', fontWeight: 'bold', marginBottom: '5px' }}>{patrulla.puntos} pts</p>
             <p style={{ color: colorTiempo, fontSize: '1.3em', fontWeight: 'bold' }}>⏱️ {formatoTiempo(tiempoRestante)}</p>
           </div>
         </div>
